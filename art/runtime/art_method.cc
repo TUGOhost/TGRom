@@ -17,15 +17,6 @@
 #include "art_method.h"
 
 #include <cstddef>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <sys/un.h>
-#include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <fcntl.h>
 
 #include "android-base/stringprintf.h"
 
@@ -59,8 +50,36 @@
 #include "runtime_callbacks.h"
 #include "scoped_thread_state_change-inl.h"
 #include "vdex_file.h"
+//added code
+
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "runtime.h"
+#include <android/log.h>
+#include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <sys/mman.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <sys/un.h>
+#include <time.h>
+#include <unistd.h>
 
 #define gettidv1() syscall(__NR_gettid)
+#define LOG_TAG "ActivityThread"
+#define ALOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+//add end
 
 namespace art {
 
@@ -75,6 +94,8 @@ extern "C" void art_quick_invoke_static_stub(ArtMethod*, uint32_t*, uint32_t, Th
 static_assert(ArtMethod::kRuntimeMethodDexMethodIndex == dex::kDexNoIndex,
               "Wrong runtime-method dex method index");
 
+
+
 ArtMethod* ArtMethod::GetCanonicalMethod(PointerSize pointer_size) {
   if (LIKELY(!IsDefault())) {
     return this;
@@ -88,6 +109,383 @@ ArtMethod* ArtMethod::GetCanonicalMethod(PointerSize pointer_size) {
     return ret;
   }
 }
+
+//add
+uint8_t* codeitem_end(const uint8_t **pData)
+{
+    uint32_t num_of_list = DecodeUnsignedLeb128(pData);
+    for (;num_of_list>0;num_of_list--) {
+        int32_t num_of_handlers=DecodeSignedLeb128(pData);
+        int num=num_of_handlers;
+        if (num_of_handlers<=0) {
+            num=-num_of_handlers;
+        }
+        for (; num > 0; num--) {
+            DecodeUnsignedLeb128(pData);
+            DecodeUnsignedLeb128(pData);
+        }
+        if (num_of_handlers<=0) {
+            DecodeUnsignedLeb128(pData);
+        }
+    }
+    return (uint8_t*)(*pData);
+}
+
+
+
+extern "C" char *base64_encode(char *str,long str_len,long* outlen){
+	long len;
+    char *res;
+    int i,j;
+    const char *base64_table="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    if(str_len % 3 == 0)
+        len=str_len/3*4;
+    else
+        len=(str_len/3+1)*4;
+
+    res=(char*)malloc(sizeof(char)*(len+1));
+    res[len]='\0';
+    *outlen=len;
+    for(i=0,j=0;i<len-2;j+=3,i+=4)
+    {
+        res[i]=base64_table[str[j]>>2];
+        res[i+1]=base64_table[(str[j]&0x3)<<4 | (str[j+1]>>4)];
+        res[i+2]=base64_table[(str[j+1]&0xf)<<2 | (str[j+2]>>6)];
+        res[i+3]=base64_table[str[j+2]&0x3f];
+    }
+
+    switch(str_len % 3)
+    {
+        case 1:
+            res[i-2]='=';
+            res[i-1]='=';
+            break;
+        case 2:
+            res[i-1]='=';
+            break;
+    }
+
+    return res;
+	}
+	//在函数即将调用解释器执行前进行dump。
+extern "C" void dumpdexfilebyExecute(ArtMethod* artmethod)  REQUIRES_SHARED(Locks::mutator_lock_) {
+			char *dexfilepath=(char*)malloc(sizeof(char)*1000);
+			if(dexfilepath==nullptr)
+			{
+				LOG(ERROR)<< "tgrom artMethod::dumpdexfilebyArtMethod,methodname:"<<artmethod->PrettyMethod().c_str()<<"malloc 1000 byte failed";
+				return;
+			}
+			int result=0;
+			int fcmdline =-1;
+			char szCmdline[64]= {0};
+			char szProcName[256] = {0};
+			int procid = getpid();
+			sprintf(szCmdline,"/proc/%d/cmdline", procid);
+			fcmdline = open(szCmdline, O_RDONLY,0644);
+			if(fcmdline >0)
+			{
+				result=read(fcmdline, szProcName,256);
+				if(result<0)
+				{
+					LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,open cmdline file error";
+					}
+				close(fcmdline);
+
+			}
+
+			if(szProcName[0])
+			{
+
+					  const DexFile* dex_file = artmethod->GetDexFile();
+					  const uint8_t* begin_=dex_file->Begin();  // Start of data.
+					  size_t size_=dex_file->Size();  // Length of data.
+
+					  memset(dexfilepath,0,1000);
+					  int size_int_=(int)size_;
+
+					  memset(dexfilepath,0,1000);
+					  sprintf(dexfilepath,"%s","/sdcard/fext");
+					  mkdir(dexfilepath,0777);
+
+					  memset(dexfilepath,0,1000);
+					  sprintf(dexfilepath,"/sdcard/fext/%s",szProcName);
+					  mkdir(dexfilepath,0777);
+
+					  memset(dexfilepath,0,1000);
+					  sprintf(dexfilepath,"/sdcard/fext/%s/%d_dexfile_execute.dex",szProcName,size_int_);
+					  int dexfilefp=open(dexfilepath,O_RDONLY,0666);
+					  if(dexfilefp>0){
+						  close(dexfilefp);
+						  dexfilefp=0;
+
+						  }else{
+									  int fp=open(dexfilepath,O_CREAT|O_APPEND|O_RDWR,0666);
+									  if(fp>0)
+									  {
+										  result=write(fp,(void*)begin_,size_);
+										  if(result<0)
+										  {
+											  LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,open dexfilepath error";
+											  }
+										  fsync(fp);
+										  close(fp);
+										  memset(dexfilepath,0,1000);
+										  sprintf(dexfilepath,"/sdcard/fext/%s/%d_classlist_execute.txt",szProcName,size_int_);
+										  int classlistfile=open(dexfilepath,O_CREAT|O_APPEND|O_RDWR,0666);
+											if(classlistfile>0)
+											{
+												for (size_t ii= 0; ii< dex_file->NumClassDefs(); ++ii)
+												{
+													const dex::ClassDef& class_def = dex_file->GetClassDef(ii);
+													const char* descriptor = dex_file->GetClassDescriptor(class_def);
+													result=write(classlistfile,(void*)descriptor,strlen(descriptor));
+													if(result<0)
+													{
+														LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,write classlistfile file error";
+
+														}
+													const char* temp="\n";
+													result=write(classlistfile,(void*)temp,1);
+													if(result<0)
+													{
+														LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,write classlistfile file error";
+
+														}
+													}
+												  fsync(classlistfile);
+												  close(classlistfile);
+
+												}
+										  }
+
+
+									  }
+
+
+			}
+
+			if(dexfilepath!=nullptr)
+			{
+				free(dexfilepath);
+				dexfilepath=nullptr;
+			}
+
+}
+
+extern "C" bool ShouldUnpack() {
+    int result=0;
+    int fcmdline =-1;
+    char szCmdline[64]= {0};
+    char szProcName[256] = {0};
+    int procid = getpid();
+    sprintf(szCmdline,"/proc/%d/cmdline", procid);
+    fcmdline = open(szCmdline, O_RDONLY,0644);
+    if(fcmdline >0)
+    {
+        result=read(fcmdline, szProcName,256);
+        if(result<0)
+        {
+            LOG(ERROR) << "tgrom artMethod::ShouldUnpack,open cmdline file file error";
+        }
+        close(fcmdline);
+    }
+    if(szProcName[0]){
+        const char* UNPACK_CONFIG = "/data/local/tmp/fext.config";
+        std::ifstream config(UNPACK_CONFIG);
+        std::string line;
+        if(config) {
+            while (std::getline(config, line)) {
+              std::string package_name = line.substr(0, line.find(':'));
+              if (strstr(package_name.c_str(),szProcName)) {
+                  return true;
+              }
+            }
+        }
+        return false;
+    }
+    return false;
+
+}
+
+//主动调用函数的dump处理
+extern "C" void dumpArtMethod(ArtMethod* artmethod)  REQUIRES_SHARED(Locks::mutator_lock_) {
+            LOG(ERROR) << "tgrom artMethod::dumpArtMethod enter "<<artmethod->PrettyMethod().c_str();
+			char *dexfilepath=(char*)malloc(sizeof(char)*1000);
+			if(dexfilepath==nullptr)
+			{
+				LOG(ERROR) << "tgrom artMethod::dumpArtMethodinvoked,methodname:"<<artmethod->PrettyMethod().c_str()<<"malloc 1000 byte failed";
+				return;
+			}
+			int result=0;
+			int fcmdline =-1;
+			char szCmdline[64]= {0};
+			char szProcName[256] = {0};
+			int procid = getpid();
+			sprintf(szCmdline,"/proc/%d/cmdline", procid);
+			fcmdline = open(szCmdline, O_RDONLY,0644);
+			if(fcmdline >0)
+			{
+				result=read(fcmdline, szProcName,256);
+				if(result<0)
+				{
+					LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,open cmdline file file error";
+				}
+				close(fcmdline);
+			}
+
+			if(szProcName[0])
+			{
+					  const DexFile* dex_file = artmethod->GetDexFile();
+					  const uint8_t* begin_=dex_file->Begin();  // Start of data.
+					  size_t size_=dex_file->Size();  // Length of data.
+
+					  memset(dexfilepath,0,1000);
+					  int size_int_=(int)size_;
+
+					  memset(dexfilepath,0,1000);
+					  sprintf(dexfilepath,"%s","/sdcard/fext");
+					  mkdir(dexfilepath,0777);
+
+					  memset(dexfilepath,0,1000);
+					  sprintf(dexfilepath,"/sdcard/fext/%s",szProcName);
+					  mkdir(dexfilepath,0777);
+
+					  memset(dexfilepath,0,1000);
+					  sprintf(dexfilepath,"/sdcard/fext/%s/%d_dexfile.dex",szProcName,size_int_);
+					  int dexfilefp=open(dexfilepath,O_RDONLY,0666);
+					  if(dexfilefp>0){
+						  close(dexfilefp);
+						  dexfilefp=0;
+
+						  }else{
+									  int fp=open(dexfilepath,O_CREAT|O_APPEND|O_RDWR,0666);
+									  if(fp>0)
+									  {
+										  result=write(fp,(void*)begin_,size_);
+										  if(result<0)
+											{
+												LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,open dexfilepath file error";
+
+											}
+										  fsync(fp);
+										  close(fp);
+										  memset(dexfilepath,0,1000);
+										  sprintf(dexfilepath,"/sdcard/fext/%s/%d_classlist.txt",szProcName,size_int_);
+										  int classlistfile=open(dexfilepath,O_CREAT|O_APPEND|O_RDWR,0666);
+											if(classlistfile>0)
+											{
+												for (size_t ii= 0; ii< dex_file->NumClassDefs(); ++ii)
+												{
+													const dex::ClassDef& class_def = dex_file->GetClassDef(ii);
+													const char* descriptor = dex_file->GetClassDescriptor(class_def);
+													result=write(classlistfile,(void*)descriptor,strlen(descriptor));
+													if(result<0)
+													{
+														LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,write classlistfile file error";
+
+														}
+													const char* temp="\n";
+													result=write(classlistfile,(void*)temp,1);
+													if(result<0)
+													{
+														LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,write classlistfile file error";
+
+														}
+													}
+												  fsync(classlistfile);
+												  close(classlistfile);
+
+												}
+										  }
+
+
+									  }
+
+						  const dex::CodeItem* code_item = artmethod->GetCodeItem();
+						  const DexFile* dex_=artmethod->GetDexFile();
+						  CodeItemDataAccessor accessor(*dex_, dex_->GetCodeItem(artmethod->GetCodeItemOffset()));
+						  if (LIKELY(code_item != nullptr))
+						  {
+
+								  int code_item_len = 0;
+								  uint8_t *item=(uint8_t *) code_item;
+								  if (accessor.TriesSize()>0) {
+									  const uint8_t *handler_data = accessor.GetCatchHandlerData();
+									  uint8_t * tail = codeitem_end(&handler_data);
+									  code_item_len = (int)(tail - item);
+								  }else{
+									  code_item_len = 16+accessor.InsnsSizeInCodeUnits()*2;
+								  }
+									  memset(dexfilepath,0,1000);
+									  int size_int=(int)dex_file->Size();
+									  uint32_t method_idx=artmethod->GetDexMethodIndex();
+									  sprintf(dexfilepath,"/sdcard/fext/%s/%d_ins_%d.bin",szProcName,size_int,(int)gettidv1());
+								      int fp2=open(dexfilepath,O_CREAT|O_APPEND|O_RDWR,0666);
+									  if(fp2>0){
+										  lseek(fp2,0,SEEK_END);
+										  memset(dexfilepath,0,1000);
+										  int offset=(int)(item - begin_);
+										  sprintf(dexfilepath,"{name:%s,method_idx:%d,offset:%d,code_item_len:%d,ins:",artmethod->PrettyMethod().c_str(),method_idx,offset,code_item_len);
+										  int contentlength=0;
+										  while(dexfilepath[contentlength]!=0) contentlength++;
+										  result=write(fp2,(void*)dexfilepath,contentlength);
+										  if(result<0)
+													{
+														LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,write ins file error";
+
+														}
+										  long outlen=0;
+										  char* base64result=base64_encode((char*)item,(long)code_item_len,&outlen);
+										  result=write(fp2,base64result,outlen);
+										  if(result<0)
+													{
+														LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,write ins file error";
+
+														}
+										  result=write(fp2,"};",2);
+										  if(result<0)
+													{
+														LOG(ERROR) << "tgrom artMethod::dumpdexfilebyArtMethod,write ins file error";
+
+														}
+										  fsync(fp2);
+										  close(fp2);
+										  if(base64result!=nullptr){
+											  free(base64result);
+											  base64result=nullptr;
+											  }
+										   }
+
+							}
+
+
+			}
+
+			if(dexfilepath!=nullptr)
+			{
+				free(dexfilepath);
+				dexfilepath=nullptr;
+			}
+			LOG(ERROR) << "tgrom artMethod::dumpArtMethod over "<<artmethod->PrettyMethod().c_str();
+}
+extern "C" void fartextInvoke(ArtMethod* artmethod)  REQUIRES_SHARED(Locks::mutator_lock_) {
+    if(artmethod->IsNative()||artmethod->IsAbstract()){
+        return;
+    }
+	JValue result;
+	Thread *self=Thread::Current();
+	uint32_t temp[100]={0};
+	uint32_t* args=temp;
+	uint32_t args_size = (uint32_t)ArtMethod::NumArgRegisters(artmethod->GetShorty());
+    if (!artmethod->IsStatic()) {
+      args_size += 1;
+    }
+    result.SetI(111111);
+	LOG(ERROR) << "fartext fartextInvoke";
+	artmethod->Invoke(self, args, args_size, &result,artmethod->GetShorty());
+}
+
+//addend
 
 ArtMethod* ArtMethod::GetNonObsoleteMethod() {
   if (LIKELY(!IsObsolete())) {
@@ -311,305 +709,8 @@ uint32_t ArtMethod::FindCatchBlock(Handle<mirror::Class> exception_type,
   return found_dex_pc;
 }
 
-
-	extern "C" void dumpDexFileByExecute(ArtMethod * artmethod)
-	 SHARED_LOCKS_REQUIRED(Locks::mutator_lock_) {
-		char *dexfilepath = (char *) malloc(sizeof(char) * 2000);
-		if (dexfilepath == nullptr) {
-			LOG(INFO) <<
-			    "ArtMethod::dumpDexFileByExecute,methodname:"
-			    << ArtMethod::PrettyMethod(artmethod).c_str() << "malloc 2000 byte failed";
-			return;
-		}
-		int fcmdline = -1;
-		char szCmdline[64] = { 0 };
-		char szProcName[256] = { 0 };
-		int procid = getpid();
-		sprintf(szCmdline, "/proc/%d/cmdline", procid);
-		fcmdline = open(szCmdline, O_RDONLY | O_CREAT, 0644);
-		if (fcmdline > 0) {
-			if (read(fcmdline, szProcName, 256) == -1) {
-
-      }
-			close(fcmdline);
-		}
-
-		if (szProcName[0]) {
-
-			const DexFile *dex_file = artmethod->GetDexFile();
-			const uint8_t *begin_ = dex_file->Begin();	// Start of data.
-			size_t size_ = dex_file->Size();	// Length of data.
-
-			memset(dexfilepath, 0, 2000);
-			int size_int_ = (int) size_;
-
-			memset(dexfilepath, 0, 2000);
-			sprintf(dexfilepath, "%s", "/data/local/tmp/tgunpacker");
-			mkdir(dexfilepath, 0777);
-
-			memset(dexfilepath, 0, 2000);
-			sprintf(dexfilepath, "/data/local/tmp/tgunpacker/%s",
-				szProcName);
-			mkdir(dexfilepath, 0777);
-
-			memset(dexfilepath, 0, 2000);
-			sprintf(dexfilepath,
-				"/data/local/tmp/tgunpacker/%s/%d_dexfile_execute.dex",
-				szProcName, size_int_);
-			int dexfilefp = open(dexfilepath, O_RDONLY | O_CREAT, 0666);
-			if (dexfilefp > 0) {
-				close(dexfilefp);
-				dexfilefp = 0;
-
-			} else {
-				dexfilefp =
-				    open(dexfilepath, O_CREAT | O_RDWR,
-					 0666);
-				if (dexfilefp > 0) {
-					if (write(dexfilefp, (void *) begin_, size_) == -1) {
-
-          }
-					fsync(dexfilefp);
-					close(dexfilefp);
-				}
-
-
-			}
-
-
-		}
-
-		if (dexfilepath != nullptr) {
-			free(dexfilepath);
-			dexfilepath = nullptr;
-		}
-
-	}
-
-  uint8_t *codeitem_end(const uint8_t ** pData) {
-    uint32_t num_of_list = DecodeUnsignedLeb128(pData);
-    for (; num_of_list > 0; num_of_list--) {
-        int32_t num_of_handlers =
-            DecodeSignedLeb128(pData);
-        int num = num_of_handlers;
-        if (num_of_handlers <= 0) {
-            num = -num_of_handlers;
-        }
-        for (; num > 0; num--) {
-            DecodeUnsignedLeb128(pData);
-            DecodeUnsignedLeb128(pData);
-        }
-        if (num_of_handlers <= 0) {
-            DecodeUnsignedLeb128(pData);
-        }
-    }
-    return (uint8_t *) (*pData);
-}
-
-
-extern "C" char *base64_encode(char *str, long str_len,
-				       long *outlen) {
-		long len;
-		char *res;
-		int i, j;
-		const char *base64_table =
-		    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-		if (str_len % 3 == 0)
-			len = str_len / 3 * 4;
-		else
-			len = (str_len / 3 + 1) * 4;
-
-		res = (char *) malloc(sizeof(char) * (len + 1));
-		res[len] = '\0';
-		*outlen = len;
-		for (i = 0, j = 0; i < len - 2; j += 3, i += 4) {
-			res[i] = base64_table[str[j] >> 2];
-			res[i + 1] =
-			    base64_table[(str[j] & 0x3) << 4 |
-					 (str[j + 1] >> 4)];
-			res[i + 2] =
-			    base64_table[(str[j + 1] & 0xf) << 2 |
-					 (str[j + 2] >> 6)];
-			res[i + 3] = base64_table[str[j + 2] & 0x3f];
-		}
-
-		switch (str_len % 3) {
-		case 1:
-			res[i - 2] = '=';
-			res[i - 1] = '=';
-			break;
-		case 2:
-			res[i - 1] = '=';
-			break;
-		}
-
-		return res;
-	}
-
-// save dex file to /data/local/tmp/tgunpacker ...
-	extern "C" void dumpArtMethod(ArtMethod * artmethod)
-	 SHARED_LOCKS_REQUIRED(Locks::mutator_lock_) {
-		char *dexfilepath = (char *) malloc(sizeof(char) * 2000);
-		if (dexfilepath == nullptr) {
-			LOG(INFO) <<
-			    "ArtMethod::dumpArtMethodinvoked,methodname:"
-			    << ArtMethod::PrettyMethod(artmethod).
-			    c_str() << "malloc 2000 byte failed";
-			return;
-		}
-		int fcmdline = -1;
-		char szCmdline[64] = { 0 };
-		char szProcName[256] = { 0 };
-		int procid = getpid();
-		sprintf(szCmdline, "/proc/%d/cmdline", procid);
-		fcmdline = open(szCmdline, O_RDONLY | O_CREAT, 0644);
-		if (fcmdline > 0) {
-			if (read(fcmdline, szProcName, 256) == -1) {
-
-      }
-			close(fcmdline);
-		}
-
-		if (szProcName[0]) {
-
-			const DexFile *dex_file = artmethod->GetDexFile();
-			const char *methodname =
-			    ArtMethod::PrettyMethod(artmethod).c_str();
-			const uint8_t *begin_ = dex_file->Begin();
-			size_t size_ = dex_file->Size();
-
-			memset(dexfilepath, 0, 2000);
-			int size_int_ = (int) size_;
-
-			memset(dexfilepath, 0, 2000);
-			sprintf(dexfilepath, "%s", "/data/local/tmp/tgunpacker");
-			mkdir(dexfilepath, 0777);
-
-			memset(dexfilepath, 0, 2000);
-			sprintf(dexfilepath, "/data/local/tmp/tgunpacker/%s",
-				szProcName);
-			mkdir(dexfilepath, 0777);
-
-			memset(dexfilepath, 0, 2000);
-			sprintf(dexfilepath,
-				"/data/local/tmp/tgunpacker/%s/%d_dexfile.dex",
-				szProcName, size_int_);
-			int dexfilefp = open(dexfilepath, O_RDONLY | O_CREAT, 0666);
-			if (dexfilefp > 0) {
-				close(dexfilefp);
-				dexfilefp = 0;
-
-			} else {
-				dexfilefp =
-				    open(dexfilepath, O_CREAT | O_RDWR,
-					 0666);
-				if (dexfilefp > 0) {
-					if (write(dexfilefp, (void *) begin_, size_) == -1) {
-
-          }
-					fsync(dexfilefp);
-					close(dexfilefp);
-				}
-
-
-			}
-			//const DexFile::CodeItem * code_item = artmethod->GetCodeItem();
-      const dex::CodeItem * code_item = artmethod->GetCodeItem();
-      const DexFile * dex_=artmethod->GetDexFile();
-      CodeItemDataAccessor accessor(*dex_, dex_->GetCodeItem(artmethod->GetCodeItemOffset()));
-			if (LIKELY(code_item != nullptr)) {
-				int code_item_len = 0;
-				uint8_t *item = (uint8_t *) code_item;
-				if (accessor.TriesSize() > 0) {
-					//const uint8_t *handler_data = (const uint8_t *)(DexFile::GetTryItems(*code_item, code_item->tries_size_));
-					const uint8_t *handler_data = accessor.GetCatchHandlerData();
-          uint8_t *tail = codeitem_end(&handler_data);
-					code_item_len = (int) (tail - item);
-				} else {
-					/*code_item_len =
-					    16 +
-					    code_item->
-					    insns_size_in_code_units_ * 2;*/
-          code_item_len = 16+accessor.InsnsSizeInCodeUnits()*2;
-				}
-				memset(dexfilepath, 0, 2000);
-				int size_int = (int) dex_file->Size();	// Length of data
-				uint32_t method_idx =
-				    artmethod->get_method_idx();
-				sprintf(dexfilepath,
-					"/data/local/tmp/tgunpacker/%s/%d_%ld.bin",
-					szProcName, size_int, gettidv1());
-				int fp2 =
-				    open(dexfilepath,
-					 O_CREAT | O_APPEND | O_RDWR,
-					 0666);
-				if (fp2 > 0) {
-					lseek(fp2, 0, SEEK_END);
-					memset(dexfilepath, 0, 2000);
-					int offset = (int) (item - begin_);
-					sprintf(dexfilepath,
-						"{name:%s,method_idx:%d,offset:%d,code_item_len:%d,ins:",
-						methodname, method_idx,
-						offset, code_item_len);
-					int contentlength = 0;
-					while (dexfilepath[contentlength]
-					       != 0)
-						contentlength++;
-					if (write(fp2, (void *) dexfilepath, contentlength) == -1) {
-
-          }
-					long outlen = 0;
-					char *base64result =
-					    base64_encode((char *) item,
-							  (long)
-							  code_item_len,
-							  &outlen);
-					if (write(fp2, base64result, outlen) == -1) {
-
-          }
-					if (write(fp2, "};", 2) == -1) {
-
-          }
-					fsync(fp2);
-					close(fp2);
-					if (base64result != nullptr) {
-						free(base64result);
-						base64result = nullptr;
-					}
-				}
-
-			}
-
-
-		}
-
-		if (dexfilepath != nullptr) {
-			free(dexfilepath);
-			dexfilepath = nullptr;
-		}
-
-	}
-
-extern "C" void myInvoke(ArtMethod * artmethod)
-	 SHARED_LOCKS_REQUIRED(Locks::mutator_lock_) {
-		JValue *result = nullptr;
-		Thread *self = nullptr;
-		uint32_t temp = 6;
-		uint32_t *args = &temp;
-		uint32_t args_size = 6;
-		artmethod->Invoke(self, args, args_size, result, "tgUnpacker");
-	}
-
 void ArtMethod::Invoke(Thread* self, uint32_t* args, uint32_t args_size, JValue* result,
                        const char* shorty) {
-  
-  /*if (self == nullptr) {
-    //todo;
-    dumpArtMethod(this);
-    return;
-  }*/
-
-
   if (UNLIKELY(__builtin_frame_address(0) < self->GetStackEnd())) {
     ThrowStackOverflowError(self);
     return;
@@ -630,6 +731,27 @@ void ArtMethod::Invoke(Thread* self, uint32_t* args, uint32_t args_size, JValue*
   // If the runtime is not yet started or it is required by the debugger, then perform the
   // Invocation by the interpreter, explicitly forcing interpretation over JIT to prevent
   // cycling around the various JIT/Interpreter methods that handle method invocation.
+
+  //add
+
+  if ((result!=nullptr && result->GetI()==111111)&&!IsNative()){
+      const dex::CodeItem* code_item =this->GetCodeItem();
+      if(LIKELY(code_item!=nullptr)){
+
+          if (IsStatic()) {
+            LOG(ERROR) << "tgrom artMethod::Invoke Static Method "<<this->PrettyMethod().c_str();
+            art::interpreter::EnterInterpreterFromInvoke(
+                            self, this, nullptr, args, result, /*stay_in_interpreter=*/ true);
+          }else{
+            LOG(ERROR) << "tgrom artMethod::Invoke Method "<<this->PrettyMethod().c_str();
+            art::interpreter::EnterInterpreterFromInvoke(
+                      self, this, nullptr, args + 1, result, /*stay_in_interpreter=*/ true);
+          }
+          self->PopManagedStackFragment(fragment);
+      }
+      return;
+  }
+  //add end
   if (UNLIKELY(!runtime->IsStarted() ||
                (self->IsForceInterpreter() && !IsNative() && !IsProxyMethod() && IsInvokable()) ||
                Dbg::IsForcedInterpreterNeededForCalling(self, this))) {
@@ -643,6 +765,10 @@ void ArtMethod::Invoke(Thread* self, uint32_t* args, uint32_t args_size, JValue*
           self, this, receiver, args + 1, result, /*stay_in_interpreter=*/ true);
     }
   } else {
+    if (result!=nullptr && result->GetI()==111111){
+        LOG(ERROR) << "tgrom artMethod::Invoke return Native Method "<<this->PrettyMethod().c_str();
+        return;
+    }
     DCHECK_EQ(runtime->GetClassLinker()->GetImagePointerSize(), kRuntimePointerSize);
 
     constexpr bool kLogInvocationStartAndReturn = false;

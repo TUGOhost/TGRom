@@ -38,9 +38,13 @@
 #include "unstarted_runtime.h"
 
 namespace art {
-extern "C" void dumpDexFileByExecute(ArtMethod* artmethod);
-namespace interpreter {
 
+extern "C" bool ShouldUnpack();
+
+namespace interpreter {
+	//add
+extern "C" void dumpdexfilebyExecute(ArtMethod* artmethod);
+	//addend
 ALWAYS_INLINE static ObjPtr<mirror::Object> ObjArg(uint32_t arg)
     REQUIRES_SHARED(Locks::mutator_lock_) {
   return reinterpret_cast<mirror::Object*>(arg);
@@ -245,6 +249,8 @@ static constexpr InterpreterImplKind kInterpreterImplKind = kSwitchImplKind;
 static constexpr InterpreterImplKind kInterpreterImplKind = kMterpImplKind;
 #endif
 
+
+
 static inline JValue Execute(
     Thread* self,
     const CodeItemDataAccessor& accessor,
@@ -253,15 +259,20 @@ static inline JValue Execute(
     bool stay_in_interpreter = false,
     bool from_deoptimize = false) REQUIRES_SHARED(Locks::mutator_lock_) {
 
-  
-  if(strstr(ArtMethod::PrettyMethod(shadow_frame.GetMethod()).c_str(),"<clinit>")!=nullptr)
-  {
-    dumpDexFileByExecute(shadow_frame.GetMethod());
-	}
-
   DCHECK(!shadow_frame.GetMethod()->IsAbstract());
   DCHECK(!shadow_frame.GetMethod()->IsNative());
+  //add
+  if(result_register.GetI()==111111){
+    LOG(ERROR) << "tgrom Execute start "<<shadow_frame.GetMethod()->PrettyMethod().c_str();
+  }
+  if(strstr(shadow_frame.GetMethod()->PrettyMethod().c_str(),"<clinit>"))
+  {
+      if(ShouldUnpack()){
+          dumpdexfilebyExecute(shadow_frame.GetMethod());
+      }
 
+  }
+  //add end 
   // Check that we are using the right interpreter.
   if (kIsDebugBuild && self->UseMterp() != CanUseMterp()) {
     // The flag might be currently being updated on all threads. Retry with lock.
@@ -337,6 +348,7 @@ static inline JValue Execute(
         return ExecuteSwitchImpl<false, true>(self, accessor, shadow_frame, result_register,
                                               false);
       } else if (UNLIKELY(!Runtime::Current()->IsStarted())) {
+
         return ExecuteSwitchImpl<false, false>(self, accessor, shadow_frame, result_register,
                                                false);
       } else {
@@ -453,8 +465,16 @@ void EnterInterpreterFromInvoke(Thread* self,
 
   size_t cur_reg = num_regs - num_ins;
   if (!method->IsStatic()) {
-    CHECK(receiver != nullptr);
-    shadow_frame->SetVRegReference(cur_reg, receiver);
+
+    //add
+    if(result!=nullptr&&result->GetI()==111111){
+        shadow_frame->SetVReg(cur_reg, args[0]);
+    }else{
+        CHECK(receiver != nullptr);
+        shadow_frame->SetVRegReference(cur_reg, receiver);
+    }
+    //add end
+    //shadow_frame->SetVRegReference(cur_reg, receiver);
     ++cur_reg;
   }
   uint32_t shorty_len = 0;
@@ -463,6 +483,12 @@ void EnterInterpreterFromInvoke(Thread* self,
     DCHECK_LT(shorty_pos + 1, shorty_len);
     switch (shorty[shorty_pos + 1]) {
       case 'L': {
+        //add
+        if(result!=nullptr&&result->GetI()==111111){
+            shadow_frame->SetVReg(cur_reg, args[0]);
+            break;
+        }
+        //add end
         ObjPtr<mirror::Object> o =
             reinterpret_cast<StackReference<mirror::Object>*>(&args[arg_pos])->AsMirrorPtr();
         shadow_frame->SetVRegReference(cur_reg, o);
@@ -493,9 +519,18 @@ void EnterInterpreterFromInvoke(Thread* self,
     }
   }
   if (LIKELY(!method->IsNative())) {
-    JValue r = Execute(self, accessor, *shadow_frame, JValue(), stay_in_interpreter);
-    if (result != nullptr) {
-      *result = r;
+    if(result!=nullptr&&result->GetI()==111111){
+        JValue r = Execute(self, accessor, *shadow_frame, *result, stay_in_interpreter);
+        if (result != nullptr) {
+          *result = r;
+        }
+        LOG(ERROR) << "tgrom Execute over"<<method->PrettyMethod().c_str();
+        return;
+    }else{
+        JValue r = Execute(self, accessor, *shadow_frame, JValue(), stay_in_interpreter);
+        if (result != nullptr) {
+          *result = r;
+        }
     }
   } else {
     // We don't expect to be asked to interpret native code (which is entered via a JNI compiler

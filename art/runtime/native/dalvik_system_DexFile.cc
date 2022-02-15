@@ -50,12 +50,16 @@
 #include "oat_file_manager.h"
 #include "runtime.h"
 #include "scoped_thread_state_change-inl.h"
-#include "scoped_fast_native_object_access-inl.h"
+//add
+#include "scoped_fast_native_object_access.h"
+//add end
 #include "well_known_classes.h"
 
 namespace art {
-extern "C" void myInvoke(ArtMethod* artmethod);
-
+//add
+extern "C" void fartextInvoke(ArtMethod* artmethod);
+extern "C" ArtMethod* jobject2ArtMethod(JNIEnv* env, jobject javaMethod);
+//add end
 using android::base::StringPrintf;
 
 static bool ConvertJavaArrayToDexFiles(
@@ -523,14 +527,14 @@ static jobjectArray DexFile_getClassNameList(JNIEnv* env, jclass, jobject cookie
   return result;
 }
 
-//addfunction
+//addfunction 将ava的Method转换成ArtMethod。然后主动调用
 static void DexFile_tgMethodCode(JNIEnv* env, jclass,jobject method) {
-  ScopedFastNativeObjectAccess soa(env);
   if(method!=nullptr)
   {
-		ArtMethod* artmethod = ArtMethod::FromReflectedMethod(soa, method);
-		myInvoke(artmethod);
-	}
+		  ArtMethod* proxy_method = jobject2ArtMethod(env, method);
+		  fartextInvoke(proxy_method);
+	  }
+
   return;
 }
 
@@ -964,8 +968,10 @@ static JNINativeMethod gMethods[] = {
   NATIVE_METHOD(DexFile, getDexFileOptimizationStatus,
                 "(Ljava/lang/String;Ljava/lang/String;)[Ljava/lang/String;"),
   NATIVE_METHOD(DexFile, setTrusted, "(Ljava/lang/Object;)V"),
+  //add
   NATIVE_METHOD(DexFile, tgMethodCode,
-                "(Ljava/lang/Object;)V"),
+                  "(Ljava/lang/Object;)V")
+  //add end
 };
 
 void register_dalvik_system_DexFile(JNIEnv* env) {

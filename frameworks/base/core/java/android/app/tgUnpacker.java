@@ -6,8 +6,58 @@ import java.util.*;
 import java.lang.reflect.*;
 
 public class tgUnpacker {
+    //为了反射封装，根据类名和字段名，反射获取字段
+    public static Field getClassField(ClassLoader classloader, String class_name,
+                                      String filedName) {
 
-    private static Object invokeStaticMethod(String class_name, String method_name, Class[] pareTyple, Object[] pareVaules) {
+        try {
+            Class obj_class = classloader.loadClass(class_name);//Class.forName(class_name);
+            Field field = obj_class.getDeclaredField(filedName);
+            field.setAccessible(true);
+            return field;
+        } catch (SecurityException e) {
+            e.printStackTrace();
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return null;
+
+    }
+
+    public static Object getClassFieldObject(ClassLoader classloader, String class_name, Object obj,
+                                             String filedName) {
+
+        try {
+            Class obj_class = classloader.loadClass(class_name);//Class.forName(class_name);
+            Field field = obj_class.getDeclaredField(filedName);
+            field.setAccessible(true);
+            Object result = null;
+            result = field.get(obj);
+            return result;
+            //field.setAccessible(true);
+            //return field;
+        } catch (SecurityException e) {
+            e.printStackTrace();
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return null;
+
+    }
+
+    public static Object invokeStaticMethod(String class_name,
+                                            String method_name, Class[] pareTyple, Object[] pareVaules) {
+
         try {
             Class obj_class = Class.forName(class_name);
             Method method = obj_class.getMethod(method_name, pareTyple);
@@ -26,44 +76,11 @@ public class tgUnpacker {
             e.printStackTrace();
         }
         return null;
+
     }
 
-    private static ClassLoader getClassloader() {
-        ClassLoader resultClassloader = null;
-
-        Object currentActivityThread = invokeStaticMethod(
-                "android.app.ActivityThread", "currentActivityThread",
-                new Class[]{}, new Object[]{});
-        Object mBoundApplication = getFieldOjbect(
-                "android.app.ActivityThread", currentActivityThread,
-                "mBoundApplication");
-        Object loadedApkInfo = getFieldOjbect(
-                "android.app.ActivityThread$AppBindData",
-                mBoundApplication, "info");
-        Application mApplication = (Application) getFieldOjbect("android.app.LoadedApk", loadedApkInfo, "mApplication");
-        resultClassloader = mApplication.getClassLoader();
-        return resultClassloader;
-    }
-
-    private static Field getClassField(ClassLoader classloader, String class_name, String filedName) {
-        try {
-            Class obj_class = classloader.loadClass(class_name);
-            Field field = obj_class.getDeclaredField(filedName);
-            field.setAccessible(true);
-            return field;
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    private static Object getFieldOjbect(String class_name, Object obj, String filedName) {
+    public static Object getFieldObject(String class_name, Object obj,
+                                        String filedName) {
         try {
             Class obj_class = Class.forName(class_name);
             Field field = obj_class.getDeclaredField(filedName);
@@ -79,35 +96,52 @@ public class tgUnpacker {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
-        }
-        return null;
-    }
-
-    private static Object getClassFieldObject(ClassLoader classloader, String class_name, Object obj, String filedName) {
-        try {
-            Class obj_class = classloader.loadClass(class_name);
-            Field field = obj_class.getDeclaredField(filedName);
-            field.setAccessible(true);
-            Object result = null;
-            result = field.get(obj);
-            return result;
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
+        } catch (NullPointerException e) {
             e.printStackTrace();
         }
         return null;
+
     }
 
-    private static void loadClassAndInvoke(ClassLoader appClassloader, String eachclassname, Method dumpMethodCode_method) {
-        //Log.i("ActivityThread", "go into loadClassAndInvoke->" + "classname:" + eachclassname);
+    public static Application getCurrentApplication() {
+        Object currentActivityThread = invokeStaticMethod(
+                "android.app.ActivityThread", "currentActivityThread",
+                new Class[]{}, new Object[]{});
+        Object mBoundApplication = getFieldObject(
+                "android.app.ActivityThread", currentActivityThread,
+                "mBoundApplication");
+        Application mInitialApplication = (Application) getFieldObject("android.app.ActivityThread",
+                currentActivityThread, "mInitialApplication");
+        Object loadedApkInfo = getFieldObject(
+                "android.app.ActivityThread$AppBindData",
+                mBoundApplication, "info");
+        Application mApplication = (Application) getFieldObject("android.app.LoadedApk", loadedApkInfo, "mApplication");
+        return mApplication;
+    }
+
+    public static ClassLoader getClassloader() {
+        ClassLoader resultClassloader = null;
+        Object currentActivityThread = invokeStaticMethod(
+                "android.app.ActivityThread", "currentActivityThread",
+                new Class[]{}, new Object[]{});
+        Object mBoundApplication = getFieldObject(
+                "android.app.ActivityThread", currentActivityThread,
+                "mBoundApplication");
+        Application mInitialApplication = (Application) getFieldObject("android.app.ActivityThread",
+                currentActivityThread, "mInitialApplication");
+        Object loadedApkInfo = getFieldObject(
+                "android.app.ActivityThread$AppBindData",
+                mBoundApplication, "info");
+        Application mApplication = (Application) getFieldObject("android.app.LoadedApk", loadedApkInfo, "mApplication");
+        //Log.e("fartext", "go into app->" + "packagename:" + mApplication.getPackageName());
+        resultClassloader = mApplication.getClassLoader();
+        return resultClassloader;
+    }
+
+    //取指定类的所有构造函数，和所有函数，使用dumpMethodCode函数来把这些函数给保存出来
+    public static void loadClassAndInvoke(ClassLoader appClassloader, String eachclassname, Method dumpMethodCode_method) {
         Class resultclass = null;
+        //Log.e("fartext", "go into loadClassAndInvoke->" + "classname:" + eachclassname);
         try {
             resultclass = appClassloader.loadClass(eachclassname);
         } catch (Exception e) {
@@ -123,6 +157,10 @@ public class tgUnpacker {
                 for (Constructor<?> constructor : cons) {
                     if (dumpMethodCode_method != null) {
                         try {
+                            if (constructor.getName().contains("cn.mik.")) {
+                                continue;
+                            }
+                            //Log.e("fartext", "classname:" + eachclassname+ " constructor->invoke "+constructor.getName());
                             dumpMethodCode_method.invoke(null, constructor);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -132,7 +170,7 @@ public class tgUnpacker {
                             continue;
                         }
                     } else {
-                        //Log.e("ActivityThread", "dumpMethodCode_method is null ");
+                        //Log.e("fartext", "dumpMethodCode_method is null ");
                     }
 
                 }
@@ -144,9 +182,14 @@ public class tgUnpacker {
             try {
                 Method[] methods = resultclass.getDeclaredMethods();
                 if (methods != null) {
+                    //Log.e("fartext", "classname:" + eachclassname+ " start invoke");
                     for (Method m : methods) {
                         if (dumpMethodCode_method != null) {
                             try {
+                                if (m.getName().contains("cn.mik.")) {
+                                    continue;
+                                }
+                                //Log.e("fartext", "classname:" + eachclassname+ " method->invoke:" + m.getName());
                                 dumpMethodCode_method.invoke(null, m);
                             } catch (Exception e) {
                                 e.printStackTrace();
@@ -156,9 +199,10 @@ public class tgUnpacker {
                                 continue;
                             }
                         } else {
-                            //Log.e("ActivityThread", "dumpMethodCode_method is null ");
+                            //Log.e("fartext", "dumpMethodCode_method is null ");
                         }
                     }
+                    //Log.e("fartext", "go into loadClassAndInvoke->"   + "classname:" + eachclassname+ " end invoke");
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -168,23 +212,30 @@ public class tgUnpacker {
         }
     }
 
-
-    public static void tgunpacker() {
-        ClassLoader appClassloader = getClassloader();
+    //根据classLoader->pathList->dexElements拿到dexFile
+    //然后拿到mCookie后，使用getClassNameList获取到所有类名。
+    //loadClassAndInvoke处理所有类名导出所有函数
+    //dumpMethodCode这个函数是fart自己加在DexFile中的
+    public static void tgunpackerWithClassLoader(ClassLoader appClassloader) {
+        //Log.e("fartext", "fartWithClassLoader "+appClassloader.toString());
         List<Object> dexFilesArray = new ArrayList<Object>();
-        Field pathList_Field = (Field) getClassField(appClassloader, "dalvik.system.BaseDexClassLoader", "pathList");
-        Object pathList_object = getFieldOjbect("dalvik.system.BaseDexClassLoader", appClassloader, "pathList");
-        Object[] ElementsArray = (Object[]) getFieldOjbect("dalvik.system.DexPathList", pathList_object, "dexElements");
+        Field paist_Field = (Field) getClassField(appClassloader, "dalvik.system.BaseDexClassLoader", "pathList");
+        Object pathList_object = getFieldObject("dalvik.system.BaseDexClassLoader", appClassloader, "pathList");
+        Object[] ElementsArray = (Object[]) getFieldObject("dalvik.system.DexPathList", pathList_object, "dexElements");
         Field dexFile_fileField = null;
         try {
             dexFile_fileField = (Field) getClassField(appClassloader, "dalvik.system.DexPathList$Element", "dexFile");
         } catch (Exception e) {
+            e.printStackTrace();
+        } catch (Error e) {
             e.printStackTrace();
         }
         Class DexFileClazz = null;
         try {
             DexFileClazz = appClassloader.loadClass("dalvik.system.DexFile");
         } catch (Exception e) {
+            e.printStackTrace();
+        } catch (Error e) {
             e.printStackTrace();
         }
         Method getClassNameList_method = null;
@@ -201,12 +252,17 @@ public class tgUnpacker {
                 defineClass_method = field;
                 defineClass_method.setAccessible(true);
             }
-            if (field.getName().equals("dumpMethodCode")) {
+            if (field.getName().equals("dumpDexFile")) {
+                dumpDexFile_method = field;
+                dumpDexFile_method.setAccessible(true);
+            }
+            if (field.getName().equals("tgMethodCode")) {
                 dumpMethodCode_method = field;
                 dumpMethodCode_method.setAccessible(true);
             }
         }
         Field mCookiefield = getClassField(appClassloader, "dalvik.system.DexFile", "mCookie");
+        //Log.e("fartext->methods", "dalvik.system.DexPathList.ElementsArray.length:" + ElementsArray.length);
         for (int j = 0; j < ElementsArray.length; j++) {
             Object element = ElementsArray[j];
             Object dexfile = null;
@@ -214,15 +270,25 @@ public class tgUnpacker {
                 dexfile = (Object) dexFile_fileField.get(element);
             } catch (Exception e) {
                 e.printStackTrace();
+            } catch (Error e) {
+                e.printStackTrace();
             }
             if (dexfile == null) {
+                //Log.e("fartext", "dexfile is null");
                 continue;
             }
             if (dexfile != null) {
                 dexFilesArray.add(dexfile);
                 Object mcookie = getClassFieldObject(appClassloader, "dalvik.system.DexFile", dexfile, "mCookie");
                 if (mcookie == null) {
-                    continue;
+                    Object mInternalCookie = getClassFieldObject(appClassloader, "dalvik.system.DexFile", dexfile, "mInternalCookie");
+                    if (mInternalCookie != null) {
+                        mcookie = mInternalCookie;
+                    } else {
+                        //Log.e("fartext->err", "get mInternalCookie is null");
+                        continue;
+                    }
+
                 }
                 String[] classnames = null;
                 try {
@@ -235,6 +301,7 @@ public class tgUnpacker {
                     continue;
                 }
                 if (classnames != null) {
+                    //Log.e("fartext", "all classes "+String.join(",",classnames));
                     for (String eachclassname : classnames) {
                         loadClassAndInvoke(appClassloader, eachclassname, dumpMethodCode_method);
                     }
@@ -245,12 +312,33 @@ public class tgUnpacker {
         return;
     }
 
+    public static void tgunpacker() {
+        //Log.e("fartext", "fart");
+        ClassLoader appClassloader = getClassloader();
+        if (appClassloader == null) {
+            //Log.e("fartext", "appClassloader is null");
+            return;
+        }
+        ClassLoader tmpClassloader = appClassloader;
+        ClassLoader parentClassloader = appClassloader.getParent();
+        if (appClassloader.toString().indexOf("java.lang.BootClassLoader") == -1) {
+            tgunpackerWithClassLoader(appClassloader);
+        }
+        while (parentClassloader != null) {
+            if (parentClassloader.toString().indexOf("java.lang.BootClassLoader") == -1) {
+                tgunpackerWithClassLoader(parentClassloader);
+            }
+            tmpClassloader = parentClassloader;
+            parentClassloader = parentClassloader.getParent();
+        }
+    }
 
-    private static boolean shouldUnpack() {
+    public static boolean shouldUnpack() {
         boolean should_unpack = false;
         String processName = ActivityThread.currentProcessName();
         BufferedReader br = null;
         String configPath = "/data/local/tmp/fext.config";
+        //Log.e("fartext", "shouldUnpack processName:"+processName);
         try {
             br = new BufferedReader(new FileReader(configPath));
             String line;
@@ -261,18 +349,17 @@ public class tgUnpacker {
                 }
             }
             br.close();
-        } catch (Exception ignored) {
-
+        } catch (Exception ex) {
+            //Log.e("fartext", "shouldUnpack err:"+ex.getMessage());
         }
         return should_unpack;
     }
 
-
-    private static String getClassList() {
+    public static String getClassList() {
         String processName = ActivityThread.currentProcessName();
         BufferedReader br = null;
         String configPath = "/data/local/tmp/" + processName;
-        //Log.e("ActivityThread", "getClassList processName:"+processName);
+        //Log.e("fartext", "getClassList processName:"+processName);
         StringBuilder sb = new StringBuilder();
         try {
             br = new BufferedReader(new FileReader(configPath));
@@ -285,18 +372,16 @@ public class tgUnpacker {
             }
             br.close();
         } catch (Exception ex) {
-            //Log.e("ActivityThread", "getClassList err:"+ex.getMessage());
+            //Log.e("fartext", "getClassList err:"+ex.getMessage());
             return "";
         }
         return sb.toString();
     }
 
-
-    //对指定类进行主动调用
-    private static void fartWithClassList(String classlist) {
+    public static void tgunpackerWithClassList(String classlist) {
         ClassLoader appClassloader = getClassloader();
         if (appClassloader == null) {
-            //Log.e("ActivityThread", "appClassloader is null");
+            //Log.e("fartext", "appClassloader is null");
             return;
         }
         Class DexFileClazz = null;
@@ -309,7 +394,7 @@ public class tgUnpacker {
         }
         Method dumpMethodCode_method = null;
         for (Method field : DexFileClazz.getDeclaredMethods()) {
-            if (field.getName().equals("fartextMethodCode")) {
+            if (field.getName().equals("tgMethodCode")) {
                 dumpMethodCode_method = field;
                 dumpMethodCode_method.setAccessible(true);
             }
@@ -326,21 +411,31 @@ public class tgUnpacker {
     }
 
     public static void tgunpackerThread() {
+
         if (!shouldUnpack()) {
             return;
         }
-
-        String classList = getClassList();
-        if (null != classList && !"".equals(classList)) {
-            fartWithClassList(classList);
+        String classlist = getClassList();
+        if (!classlist.equals("")) {
+            tgunpackerWithClassList(classlist);
             return;
         }
 
         new Thread(new Runnable() {
             @Override
             public void run() {
+                // TODO Auto-generated method stub
+                try {
+                    //Log.e("fartext", "start sleep......");
+                    Thread.sleep(1 * 60 * 1000);
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                //Log.e("fartext", "sleep over and start fart");
                 tgunpacker();
-                // todo try...catch
+                //Log.e("fartext", "fart run over");
+
             }
         }).start();
     }

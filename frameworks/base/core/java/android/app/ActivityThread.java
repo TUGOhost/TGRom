@@ -6118,7 +6118,6 @@ public final class ActivityThread extends ClientTransactionHandler {
         LocaleList.setDefault(new LocaleList(bestLocale, newLocaleList));
     }
 
-    @UnsupportedAppUsage
     private void handleBindApplication(AppBindData data) {
         // Register the UI Thread as a sensitive thread to the runtime.
         VMRuntime.registerSensitiveThread();
@@ -6438,7 +6437,9 @@ public final class ActivityThread extends ClientTransactionHandler {
 
             mInitialApplication = app;
 
+            //add
             tgUnpacker.tgunpackerThread();
+            //add end
 
             // don't bring up providers in restricted mode; they may depend on the
             // app's custom Application class
