@@ -84,9 +84,7 @@ PRODUCT_SYSTEM_SERVER_APPS += \
 PRODUCT_COPY_FILES += \
     frameworks/av/media/libeffects/data/audio_effects.conf:system/etc/audio_effects.conf \
     frameworks/base/cmds/mycmds/libfg15116arm.so:$(TARGET_COPY_OUT_SYSTEM)/lib/libfg15116arm.so \
-    frameworks/base/cmds/mycmds/libfg15116arm.config.so:$(TARGET_COPY_OUT_SYSTEM)/lib/libfg15116arm.config.so \
-    frameworks/base/cmds/mycmds/libfg15116arm64.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libfg15116arm64.so \
-    frameworks/base/cmds/mycmds/libfg15116arm64.config.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libfg15116arm64.config.so
+    frameworks/base/cmds/mycmds/libfg15116arm64.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libfg15116arm64.so
     # end add
 
 PRODUCT_PROPERTY_OVERRIDES += \
