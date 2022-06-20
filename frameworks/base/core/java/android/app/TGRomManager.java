@@ -8,7 +8,7 @@ import android.util.Slog;
 // add
 @SystemService(Context.TGROM_SERVICE)
 public class TGRomManager {
-    ontext mContext;
+    Context mContext;
     ITGRom mService;
 
     public TGRomManager(Context context,ITGRom service){
