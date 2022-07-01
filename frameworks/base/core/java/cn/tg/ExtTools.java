@@ -112,36 +112,30 @@ public class ExtTools {
                         continue;
                     }
                     String gadPath = "";
-                    String arch = System.getProperty("os.arch");
-                    if (item.gadgetPath != null && item.gadgetPath.length() > 0) {
+                    //String arch = System.getProperty("os.arch");
+                    /*if (item.gadgetPath != null && item.gadgetPath.length() > 0) {
+                        if (arch.indexOf("64") >= 0) {
+                            gadPath = item.gadgetArm64Path;
+                        } else {
+                            gadPath = item.gadgetPath;
+                        }
+                    } else if (item.gadgetArm64Path != null && item.gadgetArm64Path.length() > 0) {
                         if (arch.indexOf("64") >= 0) {
                             gadPath = item.gadgetArm64Path;
                         } else {
                             gadPath = item.gadgetPath;
                         }
                     } else {
-                        boolean use14 = false;
-                        ITGRom mikrom = getiTGRom();
-                        if (mikrom != null) {
-                            String res = mikrom.readFile("/data/system/fver14.conf");
-                            Log.e("tgrom", "fver14.conf data " + res);
-                            if (res.contains("1")) {
-                                use14 = true;
-                            }
-                        }
                         if (System.getProperty("os.arch").indexOf("64") >= 0) {
-                            if (use14) {
-                                gadPath = "/system/lib64/libfdgg14.so";
-                            } else {
-                                gadPath = "/system/lib64/libfdgg15.so";
-                            }
+                            gadPath = "/system/lib64/libfg15116arm64.so";
                         } else {
-                            if (use14) {
-                                gadPath = "/system/lib/libfdgg14.so";
-                            } else {
-                                gadPath = "/system/lib/libfdgg15.so";
-                            }
+                            gadPath = "/system/lib/libfg15116arm.so";
                         }
+                    }*/
+                    if (System.getProperty("os.arch").indexOf("64") >= 0) {
+                        gadPath = "/system/lib64/libfg15116arm64.so";
+                    } else {
+                        gadPath = "/system/lib/libfg15116arm.so";
                     }
                     Log.e("tgrom", "loadGadget package:" + processName + " gadPath:" + gadPath);
                     File gadfile = new File(gadPath);
@@ -251,11 +245,10 @@ public class ExtTools {
         }
     }
 
-    public static void mycopy(String srcFileName, String trcFileName) {
+    private static void mycopy(String srcFileName, String trcFileName) {
         InputStream in = null;
         OutputStream out = null;
         try {
-            // in = File.open(srcFileName);
             in = new FileInputStream(srcFileName);
             out = new FileOutputStream(trcFileName);
             byte[] bytes = new byte[1024];
@@ -277,189 +270,6 @@ public class ExtTools {
             }
 
         }
-
-
+        Log.e("tgrom", "mycopy " + srcFileName + "   >>>    " + trcFileName);
     }
-
-    /*public static PackageItem shouldMikRom() {
-            String processName = ActivityThread.currentProcessName();
-            Log.e("tgrom", "m1 build shouldMikRom processName:"+processName);
-            for(PackageItem item : mikConfigs){
-                if(item.packageName.equals(processName)){
-                    if(item.isTuoke){
-                        if(item.breakClass.length()>0){
-                            Log.e("tgrom", "shouldMikRom breakClass:"+item.breakClass);
-                            String[] bclasses=item.breakClass.split("\n");
-                            for(String cls : bclasses){
-                                bClass.add(cls);
-                            }
-                        }
-                        if(item.whiteClass.length()>0){
-                            Log.e("tgrom", "shouldMikRom whiteClass:"+item.whiteClass);
-                            String[] wclasses=item.whiteClass.split("\n");
-                            for(String cls : wclasses){
-                                whiteClass.add(cls);
-                            }
-                        }
-                        whitePath=item.whitePath;
-                    }
-                    SetRomConfig(item);
-                    return item;
-                }
-            }
-            Log.e("tgrom", "shouldMikRom null processName:"+processName);
-            return null;
-        }*/
-
-    //为了反射封装，根据类名和字段名，反射获取字段
-    /*public static Field getClassField(ClassLoader classloader, String class_name,
-                                      String filedName) {
-
-        try {
-            Class obj_class = classloader.loadClass(class_name);//Class.forName(class_name);
-            Field field = obj_class.getDeclaredField(filedName);
-            field.setAccessible(true);
-            return field;
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        return null;
-
-    }
-
-    public static Object getClassFieldObject(ClassLoader classloader, String class_name, Object obj,
-                                             String filedName) {
-
-        try {
-            Class obj_class = classloader.loadClass(class_name);//Class.forName(class_name);
-            Field field = obj_class.getDeclaredField(filedName);
-            field.setAccessible(true);
-            Object result = null;
-            result = field.get(obj);
-            return result;
-            //field.setAccessible(true);
-            //return field;
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
-        return null;
-
-    }
-
-    public static Object invokeStaticMethod(String class_name,
-                                            String method_name, Class[] pareTyple, Object[] pareVaules) {
-
-        try {
-            Class obj_class = Class.forName(class_name);
-            Method method = obj_class.getMethod(method_name, pareTyple);
-            return method.invoke(null, pareVaules);
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        return null;
-
-    }
-
-    public static Object getFieldObject(String class_name, Object obj,
-                                        String filedName) {
-        try {
-            Class obj_class = Class.forName(class_name);
-            Field field = obj_class.getDeclaredField(filedName);
-            field.setAccessible(true);
-            return field.get(obj);
-        } catch (SecurityException e) {
-            e.printStackTrace();
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (NullPointerException e) {
-            e.printStackTrace();
-        }
-        return null;
-
-    }
-
-
-    public static ClassLoader getClassloader() {
-        ClassLoader resultClassloader = null;
-        Object currentActivityThread = invokeStaticMethod(
-                "android.app.ActivityThread", "currentActivityThread",
-                new Class[]{}, new Object[]{});
-        Object mBoundApplication = getFieldObject(
-                "android.app.ActivityThread", currentActivityThread,
-                "mBoundApplication");
-        Application mInitialApplication = (Application) getFieldObject("android.app.ActivityThread",
-                currentActivityThread, "mInitialApplication");
-        Object loadedApkInfo = getFieldObject(
-                "android.app.ActivityThread$AppBindData",
-                mBoundApplication, "info");
-        Application mApplication = (Application) getFieldObject("android.app.LoadedApk", loadedApkInfo, "mApplication");
-        String processName = ActivityThread.currentProcessName();
-        Log.e("tgrom", "go into app->" + "packagename:" + processName);
-        resultClassloader = mApplication.getClassLoader();
-        return resultClassloader;
-    }*/
-
-    /*public static void SetRomConfig(PackageItem item) {
-        Log.e("tgrom", "SetRomConfig start");
-        ClassLoader appClassloader = getClassloader();
-        if (appClassloader == null) {
-            Log.e("tgrom", "SetRomConfig appClassloader is null");
-            return;
-        }
-        Class DexFileClazz = null;
-        try {
-            DexFileClazz = appClassloader.loadClass("dalvik.system.DexFile");
-        } catch (Exception e) {
-            Log.e("tgrom", "SetRomConfig loadClass err:" + e.getMessage());
-            e.printStackTrace();
-        }
-        Method setMikRomConfig_method = null;
-        for (Method field : DexFileClazz.getDeclaredMethods()) {
-            if (field.getName().equals("setMikRomConfig")) {
-                setMikRomConfig_method = field;
-                setMikRomConfig_method.setAccessible(true);
-            }
-        }
-        if (setMikRomConfig_method == null) {
-            Log.e("tgrom", "SetRomConfig setMikRomConfig_method is null");
-            return;
-        }
-        try {
-            Log.e("tgrom", "SetRomConfig invoke");
-            setMikRomConfig_method.invoke(null, item);
-        } catch (Exception e) {
-            Log.e("tgrom", "SetRomConfig setMikRomConfig_method.invoke " + e.getMessage());
-            e.printStackTrace();
-        }
-    }*/
 }
