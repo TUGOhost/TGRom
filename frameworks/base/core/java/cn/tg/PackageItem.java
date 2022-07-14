@@ -52,7 +52,7 @@ public class PackageItem {
     //是否阻塞调用
     public boolean isBlock;
 
-    public PackageItem(){
+    public PackageItem() {
 
     }
 }

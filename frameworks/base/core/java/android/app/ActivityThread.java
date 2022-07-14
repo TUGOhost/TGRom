@@ -6429,7 +6429,8 @@ public final class ActivityThread extends ClientTransactionHandler {
         try {
             // add
             int flags = mBoundApplication == null ? 0 : mBoundApplication.appInfo.flags;
-            if(flags>0&&((flags&ApplicationInfo.FLAG_SYSTEM)!=1)){
+            if (flags > 0 && ((flags & ApplicationInfo.FLAG_SYSTEM) != 1)) {
+                ExtTools.initConfig();
                 ExtTools.loadGadget();
             }
             // end add

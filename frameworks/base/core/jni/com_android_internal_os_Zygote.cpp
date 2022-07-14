@@ -1385,7 +1385,7 @@ static jint com_android_internal_os_Zygote_nativeForkAndSpecialize(
                        mount_external, se_info, nice_name, false,
                        is_child_zygote == JNI_TRUE, instruction_set, app_data_dir);
       // add
-      #if defined(__aarch64__) || defined(__arm__)
+      /*#if defined(__aarch64__) || defined(__arm__)
     {
       #if defined(__aarch64__)
         #define FRIDA_LIB "/system/lib64/libfg15116arm64.so"
@@ -1402,7 +1402,7 @@ static jint com_android_internal_os_Zygote_nativeForkAndSpecialize(
           env->ReleaseStringUTFChars(nice_name, name);
           delete name;
     }
-    #endif
+    #endif*/
     // end add
     }
     return pid;

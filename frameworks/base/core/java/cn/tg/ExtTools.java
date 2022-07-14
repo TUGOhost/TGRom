@@ -112,26 +112,6 @@ public class ExtTools {
                         continue;
                     }
                     String gadPath = "";
-                    //String arch = System.getProperty("os.arch");
-                    /*if (item.gadgetPath != null && item.gadgetPath.length() > 0) {
-                        if (arch.indexOf("64") >= 0) {
-                            gadPath = item.gadgetArm64Path;
-                        } else {
-                            gadPath = item.gadgetPath;
-                        }
-                    } else if (item.gadgetArm64Path != null && item.gadgetArm64Path.length() > 0) {
-                        if (arch.indexOf("64") >= 0) {
-                            gadPath = item.gadgetArm64Path;
-                        } else {
-                            gadPath = item.gadgetPath;
-                        }
-                    } else {
-                        if (System.getProperty("os.arch").indexOf("64") >= 0) {
-                            gadPath = "/system/lib64/libfg15116arm64.so";
-                        } else {
-                            gadPath = "/system/lib/libfg15116arm.so";
-                        }
-                    }*/
                     if (System.getProperty("os.arch").indexOf("64") >= 0) {
                         gadPath = "/system/lib64/libfg15116arm64.so";
                     } else {
