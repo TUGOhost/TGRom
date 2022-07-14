@@ -16,7 +16,7 @@ import java.io.RandomAccessFile;
 // add
 public class TGRomService extends ITGRom.Stub {
     private Context mContext;
-    private String TAG = "MikRomService";
+    private String TAG = "TGRomService";
     private String msg = null;
 
     public TGRomService(Context context) {

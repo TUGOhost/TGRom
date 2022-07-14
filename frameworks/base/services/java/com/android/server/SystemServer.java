@@ -967,7 +967,7 @@ public final class SystemServer {
             try{
                 ServiceManager.addService(Context.TGROM_SERVICE,new TGRomService(context));
             } catch(Throwable e){
-                Slog.e("mikrom","Failed to start MikRomService Service "+e);
+                Slog.e("tgrom","Failed to start tgRomService Service "+e);
             }
             // end add
 

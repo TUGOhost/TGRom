@@ -13,7 +13,7 @@ public class TGRomManager {
 
     public TGRomManager(Context context,ITGRom service){
         if(service==null){
-            Slog.e("MikRomManager","Construct service is null");
+            Slog.e("TGRomManager","Construct service is null");
         }
         mContext = context;
         mService = service;
@@ -22,13 +22,13 @@ public class TGRomManager {
     public String shellExec(String cmd){
         if(mService != null){
             try{
-                Slog.e("MikRomManager","shellExec");
+                Slog.e("TGRomManager","shellExec");
                 return mService.shellExec(cmd);
             }catch(RemoteException e){
-                Slog.e("MikRomManager","RemoteException "+e);
+                Slog.e("TGRomManager","RemoteException "+e);
             }
         }else{
-            Slog.e("MikRomManager","mService is null");
+            Slog.e("TGRomManager","mService is null");
         }
         return "";
     }
@@ -36,13 +36,13 @@ public class TGRomManager {
     public String readFile(String path){
         if(mService != null){
             try{
-                Slog.e("MikRomManager","readFile");
+                Slog.e("TGRomManager","readFile");
                 return mService.readFile(path);
             }catch(RemoteException e){
-                Slog.e("MikRomManager","RemoteException "+e);
+                Slog.e("TGRomManager","RemoteException "+e);
             }
         }else{
-            Slog.e("MikRomManager","mService is null");
+            Slog.e("TGRomManager","mService is null");
         }
         return "";
     }
@@ -50,13 +50,13 @@ public class TGRomManager {
     public void writeFile(String path,String data){
         if(mService != null){
             try{
-                Slog.e("MikRomManager","writeFile");
+                Slog.e("TGRomManager","writeFile");
                 mService.writeFile(path,data);
             }catch(RemoteException e){
-                Slog.e("MikRomManager","RemoteException "+e);
+                Slog.e("TGRomManager","RemoteException "+e);
             }
         }else{
-            Slog.e("MikRomManager","mService is null");
+            Slog.e("TGRomManager","mService is null");
         }
     }
 

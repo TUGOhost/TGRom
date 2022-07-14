@@ -23,18 +23,18 @@ import java.util.List;
 
 // add
 public class ExtTools {
-    public static List<PackageItem> mikConfigs;
+    public static List<PackageItem> tgConfigs;
     public static List<String> bClass = new ArrayList<String>();
     public static List<String> whiteClass = new ArrayList<String>();
     public static String whitePath = "";
 
     public static String getTGConfig() {
         try {
-            ITGRom mikrom = getiTGRom();
-            if (mikrom == null) {
+            ITGRom tgrom = getiTGRom();
+            if (tgrom == null) {
                 return "";
             }
-            return mikrom.readFile("/data/system/tg.conf");
+            return tgrom.readFile("/data/system/tg.conf");
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -43,11 +43,11 @@ public class ExtTools {
 
     public static void initConfig() {
         try {
-            mikConfigs = new ArrayList<PackageItem>();
-            String mikromConfigJson = getTGConfig();
-            Log.e("tgrom", "initConfig config:" + mikromConfigJson);
-            if (mikromConfigJson.length() > 5) {
-                final JSONArray arr = new JSONArray(mikromConfigJson);
+            tgConfigs = new ArrayList<PackageItem>();
+            String tgromConfigJson = getTGConfig();
+            Log.e("tgrom", "initConfig config:" + tgromConfigJson);
+            if (tgromConfigJson.length() > 5) {
+                final JSONArray arr = new JSONArray(tgromConfigJson);
                 Log.e("tgrom", "initConfig package count:" + arr.length());
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject jobj = arr.getJSONObject(i);
@@ -83,7 +83,7 @@ public class ExtTools {
                     cfg.rediectDir = jobj.getString("rediectDir");
                     cfg.dexClassName = jobj.getString("dexClassName");
                     cfg.isBlock = jobj.getBoolean("isBlock");
-                    mikConfigs.add(cfg);
+                    tgConfigs.add(cfg);
                     Log.e("tgrom", "initConfig packageName" + cfg.packageName);
                     String processName = ActivityThread.currentProcessName();
                 }
@@ -103,8 +103,8 @@ public class ExtTools {
     public static void loadGadget() {
         String processName = ActivityThread.currentProcessName();
         Log.e("tgrom", "loadGadget enter package:" + processName);
-        for (PackageItem item : mikConfigs) {
-            Log.e("tgrom", "loadGadget package:" + processName + " mikconfig:" + item.packageName);
+        for (PackageItem item : tgConfigs) {
+            Log.e("tgrom", "loadGadget package:" + processName + "tgconfig:" + item.packageName);
             if (item.packageName.equals(processName)) {
                 try {
                     if (item.fridaJsPath.length() <= 0) {
